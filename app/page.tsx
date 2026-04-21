@@ -2,43 +2,22 @@
 
 import { useState } from "react";
 
+type FeedbackState = "" | "loved" | "not_for_me";
+
+type FollowUpOption = {
+  label: string;
+  buildPrompt: (lastPrompt: string, lastRecommendation: string) => string;
+};
+
 export default function HomePage() {
   const [prompt, setPrompt] = useState("");
+  const [activeMoment, setActiveMoment] = useState("");
+  const [momentHistory, setMomentHistory] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [recommendation, setRecommendation] = useState("");
   const [error, setError] = useState("");
-  const [feedback, setFeedback] = useState<"" | "loved" | "not_for_me">("");
+  const [feedback, setFeedback] = useState<FeedbackState>("");
   const [history, setHistory] = useState<string[]>([]);
-
-  async function handleRecommend() {
-    setLoading(true);
-    setRecommendation("");
-    setError("");
-    setFeedback("");
-
-    try {
-      const res = await fetch("/api/recommend", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ prompt, history }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || "Something went wrong");
-      }
-
-      setRecommendation(data.recommendation);
-      setHistory((prev) => [...prev, prompt]);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Unknown error");
-    } finally {
-      setLoading(false);
-    }
-  }
 
   const suggestions = [
     "Warm sunny afternoon",
@@ -48,114 +27,760 @@ export default function HomePage() {
     "Like Pinot Noir",
   ];
 
+  const followUpOptions: FollowUpOption[] = [
+    {
+      label: "Something lighter",
+      buildPrompt: (lastPrompt, lastRecommendation) =>
+        `Based on my wine moment "${lastPrompt}" and your current recommendation "${lastRecommendation}", give me a lighter and fresher option for the same situation.`,
+    },
+    {
+      label: "Something richer",
+      buildPrompt: (lastPrompt, lastRecommendation) =>
+        `Based on my wine moment "${lastPrompt}" and your current recommendation "${lastRecommendation}", give me a richer and more full-bodied option for the same situation.`,
+    },
+    {
+      label: "Better with food",
+      buildPrompt: (lastPrompt, lastRecommendation) =>
+        `Based on my wine moment "${lastPrompt}" and your current recommendation "${lastRecommendation}", refine this into a better food-pairing option.`,
+    },
+    {
+      label: "Safer option",
+      buildPrompt: (lastPrompt, lastRecommendation) =>
+        `Based on my wine moment "${lastPrompt}" and your current recommendation "${lastRecommendation}", give me a safer and more crowd-pleasing option.`,
+    },
+    {
+      label: "More adventurous",
+      buildPrompt: (lastPrompt, lastRecommendation) =>
+        `Based on my wine moment "${lastPrompt}" and your current recommendation "${lastRecommendation}", give me a slightly more adventurous option that still suits me.`,
+    },
+  ];
+
+  async function sendPrompt(
+    nextPrompt: string,
+    options?: {
+      visibleMoment?: string;
+      addToMomentHistory?: boolean;
+    }
+  ) {
+    if (!nextPrompt.trim()) return;
+
+    setLoading(true);
+    setError("");
+    setFeedback("");
+
+    if (options?.visibleMoment) {
+      setActiveMoment(options.visibleMoment);
+    }
+
+    if (options?.addToMomentHistory) {
+      setMomentHistory((prev) => [...prev, nextPrompt]);
+    }
+
+    try {
+      const nextHistory = [...history, nextPrompt];
+
+      const res = await fetch("/api/recommend", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt: nextPrompt, history: nextHistory }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || "Something went wrong");
+      }
+
+      setRecommendation(data.recommendation);
+      setHistory(nextHistory);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unknown error");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleAsk() {
+    const trimmed = prompt.trim();
+    if (!trimmed) return;
+
+    if (!activeMoment) {
+      await sendPrompt(trimmed, { visibleMoment: trimmed, addToMomentHistory: true });
+    } else {
+      await sendPrompt(trimmed, { addToMomentHistory: true });
+    }
+
+    setPrompt("");
+  }
+
+  async function handleFollowUp(option: FollowUpOption) {
+    if (!activeMoment || !recommendation) return;
+    const refinedPrompt = option.buildPrompt(activeMoment, recommendation);
+    await sendPrompt(refinedPrompt, { addToMomentHistory: false });
+  }
+
+  function handleNewSession() {
+    setPrompt("");
+    setActiveMoment("");
+    setMomentHistory([]);
+    setLoading(false);
+    setRecommendation("");
+    setError("");
+    setFeedback("");
+    setHistory([]);
+  }
+
   return (
-    <main className="min-h-screen bg-black text-white px-5 py-10 md:px-6">
-      <div className="mx-auto max-w-2xl">
-        <div className="mb-8">
-                  <h1 className="text-4xl md:text-5xl font-semibold tracking-tight mb-3">
-            Personal Wine Sommelier
-          </h1>
+    <>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Jost:wght@300;400;500&display=swap');
 
-          <p className="text-neutral-300 text-lg leading-relaxed">
-            What are you in the mood for? I’ll help you choose a wine
-            that fits the moment.
-          </p>
-        </div>
+        :root {
+          --cream: #faf7f2;
+          --parchment: #f2ece0;
+          --warm-stone: #e8dfd0;
+          --dusty-rose: #c9a9a0;
+          --wine: #8b3a52;
+          --wine-light: #a85070;
+          --bark: #6b5344;
+          --sage: #8a9e8c;
+          --ink: #2c2420;
+          --ink-soft: #4a3d37;
+          --ink-muted: #7a6a62;
+          --ink-faint: #a89990;
+        }
 
-        <div className="rounded-[28px] border border-neutral-800 bg-neutral-950 p-5 md:p-6 shadow-2xl">
-          <div className="mb-4">
-            <p className="text-sm text-neutral-400 mb-3">Try a prompt</p>
+        * { box-sizing: border-box; }
 
-            <div className="flex flex-wrap gap-2">
-              {suggestions.map((idea) => (
-                <button
-                  key={idea}
-                  type="button"
-                  onClick={() => setPrompt(idea)}
-                  className="rounded-full border border-neutral-700 bg-neutral-900 px-4 py-2 text-sm text-white hover:bg-neutral-800 hover:border-neutral-500 transition"
-                >
-                  {idea}
-                </button>
-              ))}
-            </div>
-          </div>
+        body {
+          background-color: var(--cream);
+          margin: 0;
+        }
 
-          <textarea
-            value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
-            placeholder="Example: Warm day, low acidity white, rooftop drinks"
-            className="w-full min-h-36 rounded-[22px] bg-black border border-neutral-800 p-5 text-white outline-none resize-none placeholder:text-neutral-500"
-          />
+        .page {
+          font-family: 'Jost', sans-serif;
+          font-weight: 300;
+          min-height: 100vh;
+          background-color: var(--cream);
+          background-image:
+            radial-gradient(ellipse at 10% 0%, rgba(201, 169, 160, 0.15) 0%, transparent 60%),
+            radial-gradient(ellipse at 90% 100%, rgba(139, 58, 82, 0.08) 0%, transparent 50%);
+          padding: 48px 20px 80px;
+          color: var(--ink);
+        }
 
-          <div className="mt-5">
-            <button
-              onClick={handleRecommend}
-              disabled={loading || !prompt.trim()}
-              className="rounded-full bg-white text-black px-6 py-3 font-medium disabled:opacity-50 hover:opacity-90 transition"
-            >
-              {loading ? "Thinking..." : "Ask"}
-            </button>
-          </div>
+        .container {
+          max-width: 640px;
+          margin: 0 auto;
+        }
 
-          {error && <p className="mt-4 text-red-400">{error}</p>}
-        </div>
+        /* ── Header ── */
+        .header {
+          margin-bottom: 48px;
+        }
 
-        {recommendation && (
-          <div className="mt-6 rounded-[28px] border border-neutral-800 bg-neutral-950 p-5 md:p-6 shadow-2xl">
-            <p className="text-sm uppercase tracking-[0.2em] text-neutral-500 mb-3">
-              Recommendation
-            </p>
+        .header-inner {
+          display: flex;
+          align-items: flex-start;
+          justify-content: space-between;
+          gap: 16px;
+        }
 
-            <p className="text-neutral-100 whitespace-pre-wrap leading-8">
-              {recommendation}
-            </p>
+        .eyebrow {
+          font-family: 'Jost', sans-serif;
+          font-weight: 400;
+          font-size: 10px;
+          letter-spacing: 0.3em;
+          text-transform: uppercase;
+          color: var(--dusty-rose);
+          margin: 0 0 14px;
+        }
 
-            <div className="mt-6">
-              <p className="text-sm text-neutral-400 mb-3">
-                Was this a good recommendation?
-              </p>
+        .title {
+          font-family: 'Cormorant Garamond', serif;
+          font-weight: 300;
+          font-size: clamp(44px, 8vw, 64px);
+          line-height: 1;
+          letter-spacing: -0.01em;
+          margin: 0 0 12px;
+          color: var(--ink);
+        }
 
-              <div className="flex flex-wrap gap-3">
-                <button
-                  type="button"
-                  onClick={() => setFeedback("loved")}
-                  className={`rounded-full px-4 py-2 text-sm font-medium transition ${
-                    feedback === "loved"
-                      ? "bg-white text-black"
-                      : "border border-neutral-700 bg-neutral-900 text-white hover:bg-neutral-800"
-                  }`}
-                >
-                  Loved it
-                </button>
+        .title em {
+          font-style: italic;
+          color: var(--wine);
+        }
 
-                <button
-                  type="button"
-                  onClick={() => setFeedback("not_for_me")}
-                  className={`rounded-full px-4 py-2 text-sm font-medium transition ${
-                    feedback === "not_for_me"
-                      ? "bg-white text-black"
-                      : "border border-neutral-700 bg-neutral-900 text-white hover:bg-neutral-800"
-                  }`}
-                >
-                  Not for me
-                </button>
+        .subtitle {
+          font-size: 15px;
+          font-weight: 300;
+          color: var(--ink-muted);
+          line-height: 1.6;
+          margin: 0;
+        }
+
+        /* ── New Session Button ── */
+        .btn-new-session {
+          flex-shrink: 0;
+          font-family: 'Jost', sans-serif;
+          font-size: 12px;
+          font-weight: 400;
+          letter-spacing: 0.08em;
+          color: var(--ink-muted);
+          background: transparent;
+          border: 1px solid var(--warm-stone);
+          border-radius: 100px;
+          padding: 9px 18px;
+          cursor: pointer;
+          transition: all 0.2s ease;
+          white-space: nowrap;
+          margin-top: 4px;
+        }
+
+        .btn-new-session:hover {
+          border-color: var(--dusty-rose);
+          color: var(--wine);
+          background: rgba(201, 169, 160, 0.08);
+        }
+
+        /* ── Card ── */
+        .card {
+          background: #ffffff;
+          border: 1px solid var(--warm-stone);
+          border-radius: 24px;
+          padding: 32px;
+          box-shadow:
+            0 1px 3px rgba(44, 36, 32, 0.04),
+            0 8px 32px rgba(44, 36, 32, 0.06),
+            0 32px 64px rgba(44, 36, 32, 0.04);
+        }
+
+        /* ── Suggestions ── */
+        .suggestions-label {
+          font-size: 11px;
+          font-weight: 400;
+          letter-spacing: 0.15em;
+          text-transform: uppercase;
+          color: var(--ink-faint);
+          margin: 0 0 12px;
+        }
+
+        .suggestions {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 8px;
+          margin-bottom: 24px;
+        }
+
+        .btn-suggestion {
+          font-family: 'Jost', sans-serif;
+          font-size: 13px;
+          font-weight: 300;
+          color: var(--ink-soft);
+          background: var(--cream);
+          border: 1px solid var(--warm-stone);
+          border-radius: 100px;
+          padding: 7px 16px;
+          cursor: pointer;
+          transition: all 0.2s ease;
+        }
+
+        .btn-suggestion:hover {
+          background: var(--parchment);
+          border-color: var(--dusty-rose);
+          color: var(--wine);
+        }
+
+        /* ── Hint box ── */
+        .hint-box {
+          background: var(--parchment);
+          border: 1px solid var(--warm-stone);
+          border-radius: 16px;
+          padding: 16px 20px;
+          margin-bottom: 24px;
+        }
+
+        .hint-box p {
+          margin: 0;
+          font-size: 13px;
+          font-weight: 300;
+          line-height: 1.65;
+          color: var(--ink-muted);
+        }
+
+        .hint-box p + p {
+          margin-top: 6px;
+          color: var(--ink-faint);
+          font-style: italic;
+          font-family: 'Cormorant Garamond', serif;
+          font-size: 14px;
+        }
+
+        /* ── Textarea ── */
+        .textarea {
+          font-family: 'Jost', sans-serif;
+          font-size: 15px;
+          font-weight: 300;
+          width: 100%;
+          min-height: 120px;
+          background: var(--cream);
+          border: 1px solid var(--warm-stone);
+          border-radius: 16px;
+          padding: 18px 20px;
+          color: var(--ink);
+          outline: none;
+          resize: none;
+          transition: border-color 0.2s ease, box-shadow 0.2s ease;
+          line-height: 1.6;
+        }
+
+        .textarea::placeholder {
+          color: var(--ink-faint);
+          font-style: italic;
+          font-family: 'Cormorant Garamond', serif;
+          font-size: 16px;
+        }
+
+        .textarea:focus {
+          border-color: var(--dusty-rose);
+          box-shadow: 0 0 0 3px rgba(201, 169, 160, 0.15);
+        }
+
+        /* ── Ask row ── */
+        .ask-row {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+          margin-top: 16px;
+        }
+
+        .ask-hint {
+          font-size: 12px;
+          font-weight: 300;
+          color: var(--ink-faint);
+          font-style: italic;
+          font-family: 'Cormorant Garamond', serif;
+          font-size: 14px;
+        }
+
+        .btn-ask {
+          font-family: 'Jost', sans-serif;
+          font-size: 13px;
+          font-weight: 400;
+          letter-spacing: 0.08em;
+          background: var(--wine);
+          color: #fff;
+          border: none;
+          border-radius: 100px;
+          padding: 12px 28px;
+          cursor: pointer;
+          transition: all 0.2s ease;
+          flex-shrink: 0;
+        }
+
+        .btn-ask:hover:not(:disabled) {
+          background: var(--wine-light);
+          transform: translateY(-1px);
+          box-shadow: 0 4px 16px rgba(139, 58, 82, 0.25);
+        }
+
+        .btn-ask:disabled {
+          opacity: 0.4;
+          cursor: not-allowed;
+          transform: none;
+        }
+
+        /* ── Loading indicator ── */
+        .loading-row {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          margin-top: 24px;
+          padding: 16px 0;
+        }
+
+        .loading-dots {
+          display: flex;
+          gap: 5px;
+        }
+
+        .loading-dots span {
+          width: 5px;
+          height: 5px;
+          border-radius: 50%;
+          background: var(--dusty-rose);
+          animation: pulse 1.4s ease-in-out infinite;
+        }
+
+        .loading-dots span:nth-child(2) { animation-delay: 0.2s; }
+        .loading-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+        @keyframes pulse {
+          0%, 80%, 100% { opacity: 0.3; transform: scale(0.9); }
+          40% { opacity: 1; transform: scale(1); }
+        }
+
+        .loading-text {
+          font-family: 'Cormorant Garamond', serif;
+          font-style: italic;
+          font-size: 14px;
+          color: var(--ink-faint);
+        }
+
+        /* ── Error ── */
+        .error {
+          margin-top: 16px;
+          font-size: 13px;
+          color: #b05050;
+          background: #fdf0f0;
+          border: 1px solid #e8c8c8;
+          border-radius: 10px;
+          padding: 12px 16px;
+        }
+
+        /* ── Divider ── */
+        .divider {
+          height: 1px;
+          background: var(--warm-stone);
+          margin: 28px 0;
+        }
+
+        /* ── Moment history ── */
+        .section-label {
+          font-size: 10px;
+          font-weight: 400;
+          letter-spacing: 0.25em;
+          text-transform: uppercase;
+          color: var(--ink-faint);
+          margin: 0 0 16px;
+        }
+
+        .moment-list {
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+        }
+
+        .moment-item {
+          display: flex;
+          gap: 12px;
+          align-items: baseline;
+        }
+
+        .moment-tag {
+          font-size: 10px;
+          font-weight: 400;
+          letter-spacing: 0.12em;
+          text-transform: uppercase;
+          color: var(--ink-faint);
+          flex-shrink: 0;
+          padding-top: 3px;
+          min-width: 36px;
+        }
+
+        .moment-text {
+          font-family: 'Cormorant Garamond', serif;
+          font-size: 17px;
+          font-weight: 400;
+          color: var(--ink-soft);
+          line-height: 1.5;
+          margin: 0;
+        }
+
+        /* ── Recommendation ── */
+        .recommendation-text {
+          font-family: 'Cormorant Garamond', serif;
+          font-size: 18px;
+          font-weight: 400;
+          line-height: 1.75;
+          color: var(--ink);
+          white-space: pre-wrap;
+          margin: 0;
+        }
+
+        /* ── Refine section ── */
+        .refine-label {
+          font-size: 11px;
+          font-weight: 400;
+          letter-spacing: 0.18em;
+          text-transform: uppercase;
+          color: var(--ink-faint);
+          margin: 0 0 12px;
+        }
+
+        .refine-buttons {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 8px;
+        }
+
+        .btn-refine {
+          font-family: 'Jost', sans-serif;
+          font-size: 12px;
+          font-weight: 400;
+          letter-spacing: 0.04em;
+          color: var(--ink-soft);
+          background: var(--cream);
+          border: 1px solid var(--warm-stone);
+          border-radius: 100px;
+          padding: 8px 18px;
+          cursor: pointer;
+          transition: all 0.2s ease;
+        }
+
+        .btn-refine:hover:not(:disabled) {
+          background: var(--parchment);
+          border-color: var(--dusty-rose);
+          color: var(--wine);
+        }
+
+        .btn-refine:disabled {
+          opacity: 0.4;
+          cursor: not-allowed;
+        }
+
+        /* ── Feedback ── */
+        .feedback-label {
+          font-size: 13px;
+          font-weight: 300;
+          color: var(--ink-muted);
+          margin: 0 0 12px;
+        }
+
+        .feedback-buttons {
+          display: flex;
+          gap: 10px;
+        }
+
+        .btn-feedback {
+          font-family: 'Jost', sans-serif;
+          font-size: 13px;
+          font-weight: 400;
+          border-radius: 100px;
+          padding: 9px 22px;
+          cursor: pointer;
+          transition: all 0.2s ease;
+          border: 1px solid var(--warm-stone);
+          background: var(--cream);
+          color: var(--ink-soft);
+        }
+
+        .btn-feedback:hover {
+          border-color: var(--dusty-rose);
+        }
+
+        .btn-feedback.active-loved {
+          background: var(--sage);
+          border-color: var(--sage);
+          color: #fff;
+        }
+
+        .btn-feedback.active-no {
+          background: var(--warm-stone);
+          border-color: var(--warm-stone);
+          color: var(--ink-soft);
+        }
+
+        .feedback-note {
+          margin-top: 12px;
+          font-family: 'Cormorant Garamond', serif;
+          font-style: italic;
+          font-size: 14px;
+          color: var(--ink-faint);
+        }
+
+        /* ── Footer ── */
+        .footer {
+          text-align: center;
+          margin-top: 40px;
+        }
+
+        .footer p {
+          font-family: 'Cormorant Garamond', serif;
+          font-style: italic;
+          font-size: 13px;
+          color: var(--ink-faint);
+          margin: 0;
+        }
+
+        /* ── Animations ── */
+        @keyframes fadeUp {
+          from { opacity: 0; transform: translateY(12px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+
+        .fade-up {
+          animation: fadeUp 0.4s ease forwards;
+        }
+      `}</style>
+
+      <main className="page">
+        <div className="container">
+
+          {/* Header */}
+          <header className="header">
+            <div className="header-inner">
+              <div>
+                <p className="eyebrow">Personal wine guide</p>
+                <h1 className="title">Wine <em>Sommelier</em></h1>
+                <p className="subtitle">
+                  A guided recommendation for the moment you are in.
+                </p>
               </div>
 
-              {feedback === "loved" && (
-                <p className="mt-3 text-sm text-neutral-400">
-                  Great. We’ll use this to improve your taste profile.
-                </p>
-              )}
-
-              {feedback === "not_for_me" && (
-                <p className="mt-3 text-sm text-neutral-400">
-                  Noted. This helps refine future recommendations.
-                </p>
+              {(activeMoment || recommendation) && (
+                <button className="btn-new-session" onClick={handleNewSession}>
+                  New moment
+                </button>
               )}
             </div>
+          </header>
+
+          {/* Main card */}
+          <div className="card">
+
+            {/* Suggestions — only on fresh state */}
+            {!activeMoment && !recommendation && (
+              <>
+                <p className="suggestions-label">Try a prompt</p>
+                <div className="suggestions">
+                  {suggestions.map((idea) => (
+                    <button
+                      key={idea}
+                      className="btn-suggestion"
+                      onClick={() => setPrompt(idea)}
+                    >
+                      {idea}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="hint-box">
+                  <p>Start with what you like — the mood, the setting, or the food.</p>
+                  <p>
+                    "I liked Château de Pommard. Tonight I want something softer for dinner with friends."
+                  </p>
+                </div>
+              </>
+            )}
+
+            {/* Moment history */}
+            {momentHistory.length > 0 && (
+              <div className="fade-up" style={{ marginBottom: 24 }}>
+                <p className="section-label">Your moment</p>
+                <div className="moment-list">
+                  {momentHistory.map((item, index) => (
+                    <div key={`${item}-${index}`} className="moment-item">
+                      <span className="moment-tag">{index === 0 ? "Start" : "Refine"}</span>
+                      <p className="moment-text">{item}</p>
+                    </div>
+                  ))}
+                </div>
+                <div className="divider" />
+              </div>
+            )}
+
+            {/* Textarea */}
+            <textarea
+              className="textarea"
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  handleAsk();
+                }
+              }}
+              placeholder="What are you in the mood for?"
+              rows={4}
+            />
+
+            <div className="ask-row">
+              <span className="ask-hint">Mood, setting, food, or a wine you loved before</span>
+              <button
+                className="btn-ask"
+                onClick={handleAsk}
+                disabled={loading || !prompt.trim()}
+              >
+                {loading ? "..." : "Ask"}
+              </button>
+            </div>
+
+            {/* Loading */}
+            {loading && (
+              <div className="loading-row">
+                <div className="loading-dots">
+                  <span /><span /><span />
+                </div>
+                <span className="loading-text">Finding the right wine for this moment…</span>
+              </div>
+            )}
+
+            {/* Error */}
+            {error && <p className="error">{error}</p>}
+
+            {/* Recommendation */}
+            {recommendation && !loading && (
+              <div className="fade-up">
+                <div className="divider" />
+
+                <p className="section-label">My pick</p>
+                <p className="recommendation-text">{recommendation}</p>
+
+                <div className="divider" />
+
+                {/* Refine */}
+                <p className="refine-label">Refine this</p>
+                <div className="refine-buttons">
+                  {followUpOptions.map((option) => (
+                    <button
+                      key={option.label}
+                      className="btn-refine"
+                      onClick={() => handleFollowUp(option)}
+                      disabled={loading}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="divider" />
+
+                {/* Feedback */}
+                <p className="feedback-label">Was this a good recommendation?</p>
+                <div className="feedback-buttons">
+                  <button
+                    className={`btn-feedback ${feedback === "loved" ? "active-loved" : ""}`}
+                    onClick={() => setFeedback("loved")}
+                  >
+                    Loved it
+                  </button>
+                  <button
+                    className={`btn-feedback ${feedback === "not_for_me" ? "active-no" : ""}`}
+                    onClick={() => setFeedback("not_for_me")}
+                  >
+                    Not for me
+                  </button>
+                </div>
+
+                {feedback === "loved" && (
+                  <p className="feedback-note">Noted — we'll use this to shape your taste profile.</p>
+                )}
+                {feedback === "not_for_me" && (
+                  <p className="feedback-note">Good to know. That helps us refine what suits you.</p>
+                )}
+              </div>
+            )}
           </div>
-        )}
-      </div>
-    </main>
+
+          {/* Footer */}
+          <footer className="footer">
+            <p>Your personal sommelier, learning with every sip.</p>
+          </footer>
+
+        </div>
+      </main>
+    </>
   );
 }
