@@ -4,6 +4,8 @@ import { useState } from "react";
 
 type FeedbackState = "" | "loved" | "not_for_me";
 
+type HistoryItem = { role: "user" | "assistant"; content: string };
+
 type FollowUpOption = {
   label: string;
   buildPrompt: (lastPrompt: string, lastRecommendation: string) => string;
@@ -18,7 +20,9 @@ export default function HomePage() {
   const [recommendation, setRecommendation] = useState("");
   const [error, setError] = useState("");
   const [feedback, setFeedback] = useState<FeedbackState>("");
-  const [history, setHistory] = useState<string[]>([]);
+
+  // History now stores BOTH user and assistant turns so the AI has full context
+  const [history, setHistory] = useState<HistoryItem[]>([]);
 
   // Wine list photo state
   const [menuImage, setMenuImage] = useState<string | null>(null);
@@ -70,21 +74,36 @@ export default function HomePage() {
     setFeedback("");
     if (options?.visibleMoment) setActiveMoment(options.visibleMoment);
     if (options?.addToMomentHistory) setMomentHistory((prev) => [...prev, nextPrompt]);
+
     try {
-      const nextHistory = [...history, nextPrompt];
+      // Add the new user message to history before sending
+      const nextHistory: HistoryItem[] = [
+        ...history,
+        { role: "user", content: nextPrompt },
+      ];
+
       const res = await fetch("/api/recommend", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           prompt: nextPrompt,
           history: nextHistory,
-          image: menuImage || null, // wine list photo passed alongside the mood/context
+          image: menuImage || null,
         }),
       });
+
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Something went wrong");
+
       setRecommendation(data.recommendation);
-      setHistory(nextHistory);
+
+      // Save both the user message AND the AI response into history
+      // This gives the AI full context on the next turn
+      setHistory([
+        ...nextHistory,
+        { role: "assistant", content: data.recommendation },
+      ]);
+
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unknown error");
     } finally {
@@ -311,10 +330,7 @@ export default function HomePage() {
         .textarea:focus { border-color: var(--dusty-rose); box-shadow: 0 0 0 3px rgba(201,169,160,0.15); }
 
         /* ── Photo upload strip ── */
-        .upload-strip {
-          margin-top: 12px;
-          margin-bottom: 4px;
-        }
+        .upload-strip { margin-top: 12px; margin-bottom: 4px; }
         .btn-upload-label {
           display: inline-flex;
           align-items: center;
@@ -341,32 +357,11 @@ export default function HomePage() {
           border-radius: 12px;
           padding: 10px 14px;
         }
-        .photo-thumb {
-          height: 44px;
-          width: 64px;
-          object-fit: cover;
-          border-radius: 8px;
-          flex-shrink: 0;
-        }
+        .photo-thumb { height: 44px; width: 64px; object-fit: cover; border-radius: 8px; flex-shrink: 0; }
         .photo-info { flex: 1; }
         .photo-info p { font-size: 12px; color: var(--ink-soft); margin-bottom: 3px; }
-        .photo-info label {
-          font-size: 11px;
-          color: var(--ink-faint);
-          cursor: pointer;
-          text-decoration: underline;
-          font-family: 'Jost', sans-serif;
-        }
-        .btn-remove-photo {
-          font-size: 11px;
-          color: var(--ink-faint);
-          background: none;
-          border: none;
-          cursor: pointer;
-          padding: 4px;
-          flex-shrink: 0;
-          transition: color 0.2s;
-        }
+        .photo-info label { font-size: 11px; color: var(--ink-faint); cursor: pointer; text-decoration: underline; font-family: 'Jost', sans-serif; }
+        .btn-remove-photo { font-size: 11px; color: var(--ink-faint); background: none; border: none; cursor: pointer; padding: 4px; flex-shrink: 0; transition: color 0.2s; }
         .btn-remove-photo:hover { color: var(--wine); }
 
         /* ── Ask row ── */
@@ -442,7 +437,6 @@ export default function HomePage() {
           {/* ── Main card ── */}
           <div className="card">
 
-            {/* Suggestions — fresh state only */}
             {!activeMoment && !recommendation && (
               <>
                 <p className="suggestions-label">Try a prompt</p>
@@ -460,7 +454,6 @@ export default function HomePage() {
               </>
             )}
 
-            {/* Moment history */}
             {momentHistory.length > 0 && (
               <div className="fade-up" style={{ marginBottom: 24 }}>
                 <p className="section-label">Your moment</p>
@@ -476,7 +469,6 @@ export default function HomePage() {
               </div>
             )}
 
-            {/* Textarea */}
             <textarea
               className="textarea"
               value={prompt}
@@ -488,9 +480,8 @@ export default function HomePage() {
               rows={4}
             />
 
-            {/* ── Wine list photo upload — lives inside the card, below textarea ── */}
+            {/* ── Wine list photo upload ── */}
             <div className="upload-strip">
-              {/* Hidden file input */}
               <input
                 id="wine-list-upload"
                 type="file"
@@ -499,14 +490,12 @@ export default function HomePage() {
                 style={{ display: "none" }}
               />
 
-              {/* No photo yet — show dashed upload button */}
               {!menuImage && (
                 <label htmlFor="wine-list-upload" className="btn-upload-label">
                   📷 Add wine list photo
                 </label>
               )}
 
-              {/* Photo attached — show thumbnail + controls */}
               {menuImage && (
                 <div className="photo-attached">
                   <img src={menuImage} alt="Wine list" className="photo-thumb" />
@@ -521,7 +510,6 @@ export default function HomePage() {
               )}
             </div>
 
-            {/* Ask row */}
             <div className="ask-row">
               <span className="ask-hint">
                 {menuImage
@@ -537,22 +525,17 @@ export default function HomePage() {
               </button>
             </div>
 
-            {/* Loading */}
             {loading && (
               <div className="loading-row">
                 <div className="loading-dots"><span /><span /><span /></div>
                 <span className="loading-text">
-                  {menuImage
-                    ? "Reading the wine list for you…"
-                    : "Finding the right wine for this moment…"}
+                  {menuImage ? "Reading the wine list for you…" : "Finding the right wine for this moment…"}
                 </span>
               </div>
             )}
 
-            {/* Error */}
             {error && <p className="error">{error}</p>}
 
-            {/* Recommendation */}
             {recommendation && !loading && (
               <div className="fade-up">
                 <div className="divider" />

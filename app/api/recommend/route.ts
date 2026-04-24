@@ -3,12 +3,14 @@ import OpenAI from "openai";
 
 const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
+type HistoryItem = { role: "user" | "assistant"; content: string };
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const prompt = body.prompt;
-    const history = body.history || [];
-    const image = body.image || null; // optional wine list photo
+    const history: HistoryItem[] = body.history || [];
+    const image = body.image || null;
 
     if (!prompt || typeof prompt !== "string") {
       return NextResponse.json({ error: "Prompt is required" }, { status: 400 });
@@ -49,7 +51,7 @@ HOW YOU THINK:
 - Adjust based on taste preferences (e.g. dislikes acidity, prefers soft or buttery wines)
 - Avoid suggesting anything that contradicts clear dislikes
 - If the user refines their input, adapt smoothly without resetting the direction
-- Treat phrases like “we are at”, “we’re at", "I am at", "we are going to", "I am going to", or naming a venue as a real-time selection moment.
+- Treat phrases like "we are at", "we're at", "I am at", "we are going to", "I am going to", or naming a venue as a real-time selection moment.
 
 RECOMMENDATIONS:
 - Suggest one strong option that fits the moment
@@ -60,11 +62,11 @@ RECOMMENDATIONS:
 WHEN A WINE LIST IS PROVIDED:
 - Only choose from wines on that list
 - Still prioritise the user's taste and the moment
-- Make it feel like you’re helping them pick the right glass right now
+- Make it feel like you're helping them pick the right glass right now
 
 VENUE AWARENESS:
 
-If the user is at a winery, restaurant, bar, or venue (e.g. “we are at…”),
+If the user is at a winery, restaurant, bar, or venue (e.g. "we are at…"),
 assume they are choosing from a real wine list right now.
 
 In this case:
@@ -74,11 +76,11 @@ In this case:
 This should feel helpful and intuitive, not forced.
 
 Example behaviour:
-“If you’ve got the list in front of you, send it through and I’ll pick the best one for you.”
+"If you've got the list in front of you, send it through and I'll pick the best one for you."
 
 For example:
 - Suggest they share or upload the wine list
-- Offer to pick the best option from what’s available
+- Offer to pick the best option from what's available
 
 This should feel natural and conversational, not scripted.
 
@@ -91,19 +93,11 @@ TONE:
 
 Your goal is simple:
 Help the user feel confident that this is the right wine for their moment.
-`},
-      // Inject conversation history as alternating user/assistant turns
-      {
-  role: "user",
-  content: `
-User context:
-
-${history.join("\n")}
-
-Current request:
-${prompt}
 `,
-},
+      },
+      // Real conversation history — alternating user/assistant turns
+      ...history,
+      // Current user message
       {
         role: "user",
         content: userContent,
