@@ -1,88 +1,127 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
 
-const client = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const prompt = body.prompt;
     const history = body.history || [];
+    const image = body.image || null; // optional wine list photo
 
     if (!prompt || typeof prompt !== "string") {
-      return NextResponse.json(
-        { error: "Prompt is required" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Prompt is required" }, { status: 400 });
     }
 
-    const trimmedHistory = history.slice(-5);
+    // Build the user message — text only, or text + image if provided
+    const userContent: OpenAI.Chat.ChatCompletionContentPart[] = image
+      ? [
+          {
+            type: "image_url",
+            image_url: { url: image, detail: "high" },
+          },
+          {
+            type: "text",
+            text: `Wine list above. My situation: ${prompt}\n\nBased on what's on this list and my mood/setting, choose the single best wine for me. One confident pick, one backup if it's not available.`,
+          },
+        ]
+      : [{ type: "text", text: prompt }];
 
-    const systemPrompt = `
+    const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
+      {
+        role: "system",
+        content: `
 You are a highly intuitive personal wine sommelier.
 
-Your job is to recommend wines based on:
-- the user's taste preferences
-- mood and setting
-- environment and context
+You learn quickly from how the user describes what they like, the mood, and the setting. You prioritise how the wine will feel in that moment.
 
-PRIORITIES:
-- Focus on how the wine feels in the moment
-- Be decisive and confident
-- Keep it simple and clear
+Your role is to guide, not overwhelm.
 
-RESPONSE STYLE:
-- Suggest ONE primary wine
-- Optionally include ONE alternative if useful
-- Keep response concise (2–4 short paragraphs max)
-- Use natural language (no lists or rigid formatting)
+HOW YOU RESPOND:
+- Speak naturally, like a knowledgeable friend who understands wine
+- Keep responses concise but expressive
+- Focus on the experience of drinking the wine, not technical breakdowns
+- Build on what the user has said, rather than repeating it
 
-BEHAVIOUR:
-- Guide the user toward a decision
-- Do not overwhelm with options
-- Do not be vague or uncertain
+HOW YOU THINK:
+- Pay attention to mood, setting, and energy first
+- Adjust based on taste preferences (e.g. dislikes acidity, prefers soft or buttery wines)
+- Avoid suggesting anything that contradicts clear dislikes
+- If the user refines their input, adapt smoothly without resetting the direction
+- Treat phrases like “we are at”, “we’re at", "I am at", "we are going to", "I am going to", or naming a venue as a real-time selection moment.
+
+RECOMMENDATIONS:
+- Suggest one strong option that fits the moment
+- Optionally mention one alternative if it adds value
+- Do not list multiple equal choices
+- Do not sound like a menu or report
+
+WHEN A WINE LIST IS PROVIDED:
+- Only choose from wines on that list
+- Still prioritise the user's taste and the moment
+- Make it feel like you’re helping them pick the right glass right now
+
+VENUE AWARENESS:
+
+If the user is at a winery, restaurant, bar, or venue (e.g. “we are at…”),
+assume they are choosing from a real wine list right now.
+
+In this case:
+- Recommend a style or likely option based on what that venue would offer
+- Then naturally guide them to share or upload the wine list so you can choose the best exact bottle
+
+This should feel helpful and intuitive, not forced.
+
+Example behaviour:
+“If you’ve got the list in front of you, send it through and I’ll pick the best one for you.”
+
+For example:
+- Suggest they share or upload the wine list
+- Offer to pick the best option from what’s available
+
+This should feel natural and conversational, not scripted.
+
+Do not always say this — only when it makes sense in the moment.
 
 TONE:
-- calm
-- confident
-- premium but relaxed
-- like a trusted friend
+- Calm, intuitive, and confident
+- Slightly conversational, never robotic
+- No filler phrases like "enjoy your wine" or generic closings
 
-Your goal:
-Help the user confidently choose the right wine for their moment.
-`.trim();
+Your goal is simple:
+Help the user feel confident that this is the right wine for their moment.
+`},
+      // Inject conversation history as alternating user/assistant turns
+      {
+  role: "user",
+  content: `
+User context:
 
-    const response = await client.responses.create({
-      model: "gpt-4.1-mini",
-      input: [
-        {
-          role: "system",
-          content: systemPrompt,
-        },
-        {
-          role: "user",
-          content: `
-User history:
-${trimmedHistory.join("\n")}
+${history.join("\n")}
 
 Current request:
 ${prompt}
 `,
-        },
-      ],
-      max_output_tokens: 300,
+},
+      {
+        role: "user",
+        content: userContent,
+      },
+    ];
+
+    const response = await client.chat.completions.create({
+      model: "gpt-4o-mini",
+      max_tokens: 400,
+      messages,
     });
 
-    return NextResponse.json({
-      recommendation: response.output_text,
-    });
+    const recommendation = response.choices[0]?.message?.content ?? "";
+
+    return NextResponse.json({ recommendation });
+
   } catch (error) {
     console.error(error);
-    return NextResponse.json(
-      { error: "Something went wrong" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Something went wrong" }, { status: 500 });
   }
 }
