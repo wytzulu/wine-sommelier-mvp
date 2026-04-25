@@ -13,7 +13,6 @@ type FollowUpOption = {
 };
 
 export default function HomePage() {
-  // Wine chat state
   const [prompt, setPrompt] = useState("");
   const [activeMoment, setActiveMoment] = useState("");
   const [momentHistory, setMomentHistory] = useState<string[]>([]);
@@ -21,11 +20,7 @@ export default function HomePage() {
   const [recommendation, setRecommendation] = useState("");
   const [error, setError] = useState("");
   const [feedback, setFeedback] = useState<FeedbackState>("");
-
-  // History now stores BOTH user and assistant turns so the AI has full context
   const [history, setHistory] = useState<HistoryItem[]>([]);
-
-  // Wine list photo state
   const [menuImage, setMenuImage] = useState<string | null>(null);
 
   const suggestions = [
@@ -64,7 +59,6 @@ export default function HomePage() {
     },
   ];
 
-  // ── Wine chat ──
   async function sendPrompt(
     nextPrompt: string,
     options?: { visibleMoment?: string; addToMomentHistory?: boolean }
@@ -77,7 +71,6 @@ export default function HomePage() {
     if (options?.addToMomentHistory) setMomentHistory((prev) => [...prev, nextPrompt]);
 
     try {
-      // Add the new user message to history before sending
       const nextHistory: HistoryItem[] = [
         ...history,
         { role: "user", content: nextPrompt },
@@ -97,9 +90,6 @@ export default function HomePage() {
       if (!res.ok) throw new Error(data.error || "Something went wrong");
 
       setRecommendation(data.recommendation);
-
-      // Save both the user message AND the AI response into history
-      // This gives the AI full context on the next turn
       setHistory([
         ...nextHistory,
         { role: "assistant", content: data.recommendation },
@@ -128,7 +118,6 @@ export default function HomePage() {
     await sendPrompt(option.buildPrompt(activeMoment, recommendation), { addToMomentHistory: false });
   }
 
-  // ── Wine list photo ──
   function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -137,7 +126,6 @@ export default function HomePage() {
     reader.readAsDataURL(file);
   }
 
-  // ── Reset ──
   function handleNewSession() {
     setPrompt("");
     setActiveMoment("");
@@ -186,178 +174,50 @@ export default function HomePage() {
 
         .container { max-width: 640px; margin: 0 auto; }
 
-        /* ── Header ── */
         .header { margin-bottom: 48px; }
         .header-inner { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
-        .eyebrow {
-          font-family: 'Jost', sans-serif;
-          font-weight: 400;
-          font-size: 10px;
-          letter-spacing: 0.3em;
-          text-transform: uppercase;
-          color: var(--dusty-rose);
-          margin-bottom: 14px;
-        }
-        .title {
-          font-family: 'Cormorant Garamond', serif;
-          font-weight: 300;
-          font-size: clamp(44px, 8vw, 64px);
-          line-height: 1;
-          letter-spacing: -0.01em;
-          margin-bottom: 12px;
-          color: var(--ink);
-        }
+        .eyebrow { font-family: 'Jost', sans-serif; font-weight: 400; font-size: 10px; letter-spacing: 0.3em; text-transform: uppercase; color: var(--dusty-rose); margin-bottom: 14px; }
+        .title { font-family: 'Cormorant Garamond', serif; font-weight: 300; font-size: clamp(44px, 8vw, 64px); line-height: 1; letter-spacing: -0.01em; margin-bottom: 12px; color: var(--ink); }
         .title em { font-style: italic; color: var(--wine); }
         .subtitle { font-size: 15px; font-weight: 300; color: var(--ink-muted); line-height: 1.6; }
 
-        /* ── Buttons ── */
-        .btn-new-session {
-          font-family: 'Jost', sans-serif;
-          font-size: 12px;
-          font-weight: 400;
-          letter-spacing: 0.08em;
-          color: var(--ink-muted);
-          background: transparent;
-          border: 1px solid var(--warm-stone);
-          border-radius: 100px;
-          padding: 9px 18px;
-          cursor: pointer;
-          transition: all 0.2s ease;
-          white-space: nowrap;
-          margin-top: 4px;
-          flex-shrink: 0;
-        }
+        .btn-new-session { font-family: 'Jost', sans-serif; font-size: 12px; font-weight: 400; letter-spacing: 0.08em; color: var(--ink-muted); background: transparent; border: 1px solid var(--warm-stone); border-radius: 100px; padding: 9px 18px; cursor: pointer; transition: all 0.2s ease; white-space: nowrap; flex-shrink: 0; }
         .btn-new-session:hover { border-color: var(--dusty-rose); color: var(--wine); background: rgba(201,169,160,0.08); }
 
-        .btn-ask {
-          font-family: 'Jost', sans-serif;
-          font-size: 13px;
-          font-weight: 400;
-          letter-spacing: 0.08em;
-          background: var(--wine);
-          color: #fff;
-          border: none;
-          border-radius: 100px;
-          padding: 12px 28px;
-          cursor: pointer;
-          transition: all 0.2s ease;
-          flex-shrink: 0;
-        }
+        .btn-ask { font-family: 'Jost', sans-serif; font-size: 13px; font-weight: 400; letter-spacing: 0.08em; background: var(--wine); color: #fff; border: none; border-radius: 100px; padding: 12px 28px; cursor: pointer; transition: all 0.2s ease; flex-shrink: 0; }
         .btn-ask:hover:not(:disabled) { background: var(--wine-light); transform: translateY(-1px); box-shadow: 0 4px 16px rgba(139,58,82,0.25); }
         .btn-ask:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
 
-        .btn-suggestion {
-          font-family: 'Jost', sans-serif;
-          font-size: 13px;
-          font-weight: 300;
-          color: var(--ink-soft);
-          background: var(--cream);
-          border: 1px solid var(--warm-stone);
-          border-radius: 100px;
-          padding: 7px 16px;
-          cursor: pointer;
-          transition: all 0.2s ease;
-        }
+        .btn-suggestion { font-family: 'Jost', sans-serif; font-size: 13px; font-weight: 300; color: var(--ink-soft); background: var(--cream); border: 1px solid var(--warm-stone); border-radius: 100px; padding: 7px 16px; cursor: pointer; transition: all 0.2s ease; }
         .btn-suggestion:hover { background: var(--parchment); border-color: var(--dusty-rose); color: var(--wine); }
 
-        .btn-refine {
-          font-family: 'Jost', sans-serif;
-          font-size: 12px;
-          font-weight: 400;
-          color: var(--ink-soft);
-          background: var(--cream);
-          border: 1px solid var(--warm-stone);
-          border-radius: 100px;
-          padding: 8px 18px;
-          cursor: pointer;
-          transition: all 0.2s ease;
-        }
+        .btn-refine { font-family: 'Jost', sans-serif; font-size: 12px; font-weight: 400; color: var(--ink-soft); background: var(--cream); border: 1px solid var(--warm-stone); border-radius: 100px; padding: 8px 18px; cursor: pointer; transition: all 0.2s ease; }
         .btn-refine:hover:not(:disabled) { background: var(--parchment); border-color: var(--dusty-rose); color: var(--wine); }
         .btn-refine:disabled { opacity: 0.4; cursor: not-allowed; }
 
-        .btn-feedback {
-          font-family: 'Jost', sans-serif;
-          font-size: 13px;
-          font-weight: 400;
-          border-radius: 100px;
-          padding: 9px 22px;
-          cursor: pointer;
-          transition: all 0.2s ease;
-          border: 1px solid var(--warm-stone);
-          background: var(--cream);
-          color: var(--ink-soft);
-        }
+        .btn-feedback { font-family: 'Jost', sans-serif; font-size: 13px; font-weight: 400; border-radius: 100px; padding: 9px 22px; cursor: pointer; transition: all 0.2s ease; border: 1px solid var(--warm-stone); background: var(--cream); color: var(--ink-soft); }
         .btn-feedback:hover { border-color: var(--dusty-rose); }
         .btn-feedback.active-loved { background: var(--sage); border-color: var(--sage); color: #fff; }
         .btn-feedback.active-no { background: var(--warm-stone); border-color: var(--warm-stone); color: var(--ink-soft); }
 
-        /* ── Card ── */
-        .card {
-          background: #ffffff;
-          border: 1px solid var(--warm-stone);
-          border-radius: 24px;
-          padding: 32px;
-          box-shadow: 0 1px 3px rgba(44,36,32,0.04), 0 8px 32px rgba(44,36,32,0.06), 0 32px 64px rgba(44,36,32,0.04);
-          margin-bottom: 20px;
-        }
+        .card { background: #ffffff; border: 1px solid var(--warm-stone); border-radius: 24px; padding: 32px; box-shadow: 0 1px 3px rgba(44,36,32,0.04), 0 8px 32px rgba(44,36,32,0.06), 0 32px 64px rgba(44,36,32,0.04); margin-bottom: 20px; }
 
-        /* ── Suggestions ── */
         .suggestions-label { font-size: 11px; font-weight: 400; letter-spacing: 0.15em; text-transform: uppercase; color: var(--ink-faint); margin-bottom: 12px; }
         .suggestions { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 24px; }
 
-        /* ── Hint box ── */
         .hint-box { background: var(--parchment); border: 1px solid var(--warm-stone); border-radius: 16px; padding: 16px 20px; margin-bottom: 24px; }
         .hint-box p { font-size: 13px; font-weight: 300; line-height: 1.65; color: var(--ink-muted); }
         .hint-box p + p { margin-top: 6px; color: var(--ink-faint); font-style: italic; font-family: 'Cormorant Garamond', serif; font-size: 14px; }
 
-        /* ── Textarea ── */
-        .textarea {
-          font-family: 'Jost', sans-serif;
-          font-size: 15px;
-          font-weight: 300;
-          width: 100%;
-          min-height: 120px;
-          background: var(--cream);
-          border: 1px solid var(--warm-stone);
-          border-radius: 16px;
-          padding: 18px 20px;
-          color: var(--ink);
-          outline: none;
-          resize: none;
-          transition: border-color 0.2s ease, box-shadow 0.2s ease;
-          line-height: 1.6;
-        }
+        .textarea { font-family: 'Jost', sans-serif; font-size: 15px; font-weight: 300; width: 100%; min-height: 120px; background: var(--cream); border: 1px solid var(--warm-stone); border-radius: 16px; padding: 18px 20px; color: var(--ink); outline: none; resize: none; transition: border-color 0.2s ease, box-shadow 0.2s ease; line-height: 1.6; }
         .textarea::placeholder { color: var(--ink-faint); font-style: italic; font-family: 'Cormorant Garamond', serif; font-size: 16px; }
         .textarea:focus { border-color: var(--dusty-rose); box-shadow: 0 0 0 3px rgba(201,169,160,0.15); }
 
-        /* ── Photo upload strip ── */
         .upload-strip { margin-top: 12px; margin-bottom: 4px; }
-        .btn-upload-label {
-          display: inline-flex;
-          align-items: center;
-          gap: 6px;
-          font-family: 'Jost', sans-serif;
-          font-size: 12px;
-          font-weight: 400;
-          color: var(--ink-faint);
-          cursor: pointer;
-          border: 1px dashed var(--warm-stone);
-          border-radius: 100px;
-          padding: 7px 16px;
-          transition: all 0.2s ease;
-          background: transparent;
-        }
+        .btn-upload-label { display: inline-flex; align-items: center; gap: 6px; font-family: 'Jost', sans-serif; font-size: 12px; font-weight: 400; color: var(--ink-faint); cursor: pointer; border: 1px dashed var(--warm-stone); border-radius: 100px; padding: 7px 16px; transition: all 0.2s ease; background: transparent; }
         .btn-upload-label:hover { border-color: var(--dusty-rose); color: var(--wine); }
 
-        .photo-attached {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          background: var(--parchment);
-          border: 1px solid var(--warm-stone);
-          border-radius: 12px;
-          padding: 10px 14px;
-        }
+        .photo-attached { display: flex; align-items: center; gap: 12px; background: var(--parchment); border: 1px solid var(--warm-stone); border-radius: 12px; padding: 10px 14px; }
         .photo-thumb { height: 44px; width: 64px; object-fit: cover; border-radius: 8px; flex-shrink: 0; }
         .photo-info { flex: 1; }
         .photo-info p { font-size: 12px; color: var(--ink-soft); margin-bottom: 3px; }
@@ -365,11 +225,9 @@ export default function HomePage() {
         .btn-remove-photo { font-size: 11px; color: var(--ink-faint); background: none; border: none; cursor: pointer; padding: 4px; flex-shrink: 0; transition: color 0.2s; }
         .btn-remove-photo:hover { color: var(--wine); }
 
-        /* ── Ask row ── */
         .ask-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 16px; }
         .ask-hint { font-style: italic; font-family: 'Cormorant Garamond', serif; font-size: 14px; color: var(--ink-faint); }
 
-        /* ── Loading ── */
         .loading-row { display: flex; align-items: center; gap: 10px; margin-top: 24px; padding: 8px 0; }
         .loading-dots { display: flex; gap: 5px; }
         .loading-dots span { width: 5px; height: 5px; border-radius: 50%; background: var(--dusty-rose); animation: pulse 1.4s ease-in-out infinite; }
@@ -381,13 +239,10 @@ export default function HomePage() {
         }
         .loading-text { font-family: 'Cormorant Garamond', serif; font-style: italic; font-size: 14px; color: var(--ink-faint); }
 
-        /* ── Error ── */
         .error { margin-top: 16px; font-size: 13px; color: #b05050; background: #fdf0f0; border: 1px solid #e8c8c8; border-radius: 10px; padding: 12px 16px; }
 
-        /* ── Divider ── */
         .divider { height: 1px; background: var(--warm-stone); margin: 28px 0; }
 
-        /* ── Section labels ── */
         .section-label { font-size: 10px; font-weight: 400; letter-spacing: 0.25em; text-transform: uppercase; color: var(--ink-faint); margin-bottom: 16px; }
         .refine-label { font-size: 11px; font-weight: 400; letter-spacing: 0.18em; text-transform: uppercase; color: var(--ink-faint); margin-bottom: 12px; }
         .refine-buttons { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -395,20 +250,16 @@ export default function HomePage() {
         .feedback-buttons { display: flex; gap: 10px; }
         .feedback-note { margin-top: 12px; font-family: 'Cormorant Garamond', serif; font-style: italic; font-size: 14px; color: var(--ink-faint); }
 
-        /* ── Moment history ── */
         .moment-list { display: flex; flex-direction: column; gap: 10px; }
         .moment-item { display: flex; gap: 12px; align-items: baseline; }
         .moment-tag { font-size: 10px; font-weight: 400; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-faint); flex-shrink: 0; padding-top: 3px; min-width: 36px; }
         .moment-text { font-family: 'Cormorant Garamond', serif; font-size: 17px; font-weight: 400; color: var(--ink-soft); line-height: 1.5; }
 
-        /* ── Recommendation ── */
         .recommendation-text { font-family: 'Cormorant Garamond', serif; font-size: 18px; font-weight: 400; line-height: 1.75; color: var(--ink); white-space: pre-wrap; }
 
-        /* ── Footer ── */
         .footer { text-align: center; margin-top: 40px; }
         .footer p { font-family: 'Cormorant Garamond', serif; font-style: italic; font-size: 13px; color: var(--ink-faint); }
 
-        /* ── Animation ── */
         @keyframes fadeUp {
           from { opacity: 0; transform: translateY(12px); }
           to { opacity: 1; transform: translateY(0); }
@@ -416,38 +267,41 @@ export default function HomePage() {
         .fade-up { animation: fadeUp 0.4s ease forwards; }
       `}</style>
 
-      {/* ── Header ── */}
-<header className="header">
-  <div className="header-inner">
-    <div>
-      <p className="eyebrow">Personal wine guide</p>
-      <h1 className="title">Wine <em>Sommelier</em></h1>
-      <p className="subtitle">A guided recommendation for the moment you are in.</p>
-    </div>
-    <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 10, marginTop: 4 }}>
-      {(activeMoment || recommendation) && (
-        <button className="btn-new-session" onClick={handleNewSession}>
-          New moment
-        </button>
-      )}
-      <Link href="/tasting" style={{
-        fontFamily: "'Jost', sans-serif",
-        fontSize: 12,
-        fontWeight: 400,
-        letterSpacing: "0.08em",
-        color: "var(--wine)",
-        textDecoration: "none",
-        border: "1px solid var(--dusty-rose)",
-        borderRadius: 100,
-        padding: "9px 18px",
-        whiteSpace: "nowrap" as const,
-        transition: "all 0.2s ease",
-      }}>
-        🍷 Tasting mode
-      </Link>
-    </div>
-  </div>
-</header>
+      <main className="page">
+        <div className="container">
+
+          {/* ── Header ── */}
+          <header className="header">
+            <div className="header-inner">
+              <div>
+                <p className="eyebrow">Personal wine guide</p>
+                <h1 className="title">Wine <em>Sommelier</em></h1>
+                <p className="subtitle">A guided recommendation for the moment you are in.</p>
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 10, marginTop: 4 }}>
+                {(activeMoment || recommendation) && (
+                  <button className="btn-new-session" onClick={handleNewSession}>
+                    New moment
+                  </button>
+                )}
+                <Link href="/tasting" style={{
+                  fontFamily: "'Jost', sans-serif",
+                  fontSize: 12,
+                  fontWeight: 400,
+                  letterSpacing: "0.08em",
+                  color: "var(--wine)",
+                  textDecoration: "none",
+                  border: "1px solid var(--dusty-rose)",
+                  borderRadius: 100,
+                  padding: "9px 18px",
+                  whiteSpace: "nowrap" as const,
+                  transition: "all 0.2s ease",
+                }}>
+                  🍷 Tasting mode
+                </Link>
+              </div>
+            </div>
+          </header>
 
           {/* ── Main card ── */}
           <div className="card">
@@ -504,13 +358,11 @@ export default function HomePage() {
                 onChange={handleImageUpload}
                 style={{ display: "none" }}
               />
-
               {!menuImage && (
                 <label htmlFor="wine-list-upload" className="btn-upload-label">
                   📷 Add wine list photo
                 </label>
               )}
-
               {menuImage && (
                 <div className="photo-attached">
                   <img src={menuImage} alt="Wine list" className="photo-thumb" />
@@ -601,12 +453,11 @@ export default function HomePage() {
           </div>
 
           {/* ── Footer ── */}
-{/* ── Footer ── */}
-{/* ── Footer ── */}
-<footer className="footer">
-  <p>Your personal sommelier, learning with every sip.</p>
-</footer>
+          <footer className="footer">
+            <p>Your personal sommelier, learning with every sip.</p>
+          </footer>
 
+        </div>
       </main>
     </>
   );
