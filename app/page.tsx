@@ -607,7 +607,6 @@ export default function HomePage() {
   <p>Your personal sommelier, learning with every sip.</p>
 </footer>
 
-        </div>
       </main>
     </>
   );
