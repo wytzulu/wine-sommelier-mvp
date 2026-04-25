@@ -416,24 +416,38 @@ export default function HomePage() {
         .fade-up { animation: fadeUp 0.4s ease forwards; }
       `}</style>
 
-      <main className="page">
-        <div className="container">
-
-          {/* ── Header ── */}
-          <header className="header">
-            <div className="header-inner">
-              <div>
-                <p className="eyebrow">Personal wine guide</p>
-                <h1 className="title">Wine <em>Sommelier</em></h1>
-                <p className="subtitle">A guided recommendation for the moment you are in.</p>
-              </div>
-              {(activeMoment || recommendation) && (
-                <button className="btn-new-session" onClick={handleNewSession}>
-                  New moment
-                </button>
-              )}
-            </div>
-          </header>
+      {/* ── Header ── */}
+<header className="header">
+  <div className="header-inner">
+    <div>
+      <p className="eyebrow">Personal wine guide</p>
+      <h1 className="title">Wine <em>Sommelier</em></h1>
+      <p className="subtitle">A guided recommendation for the moment you are in.</p>
+    </div>
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 10, marginTop: 4 }}>
+      {(activeMoment || recommendation) && (
+        <button className="btn-new-session" onClick={handleNewSession}>
+          New moment
+        </button>
+      )}
+      <Link href="/tasting" style={{
+        fontFamily: "'Jost', sans-serif",
+        fontSize: 12,
+        fontWeight: 400,
+        letterSpacing: "0.08em",
+        color: "var(--wine)",
+        textDecoration: "none",
+        border: "1px solid var(--dusty-rose)",
+        borderRadius: 100,
+        padding: "9px 18px",
+        whiteSpace: "nowrap" as const,
+        transition: "all 0.2s ease",
+      }}>
+        🍷 Tasting mode
+      </Link>
+    </div>
+  </div>
+</header>
 
           {/* ── Main card ── */}
           <div className="card">
@@ -588,26 +602,9 @@ export default function HomePage() {
 
           {/* ── Footer ── */}
 {/* ── Footer ── */}
+{/* ── Footer ── */}
 <footer className="footer">
   <p>Your personal sommelier, learning with every sip.</p>
-  <Link href="/tasting" style={{
-    display: "inline-flex",
-    alignItems: "center",
-    gap: 8,
-    marginTop: 20,
-    fontFamily: "'Jost', sans-serif",
-    fontSize: 13,
-    fontWeight: 400,
-    letterSpacing: "0.08em",
-    color: "var(--wine)",
-    textDecoration: "none",
-    border: "1px solid var(--dusty-rose)",
-    borderRadius: 100,
-    padding: "10px 22px",
-    transition: "all 0.2s ease",
-  }}>
-    🍷 Start a tasting session
-  </Link>
 </footer>
 
         </div>
