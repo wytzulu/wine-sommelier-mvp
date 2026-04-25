@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 
 type FeedbackState = "" | "loved" | "not_for_me";
 
@@ -586,9 +587,28 @@ export default function HomePage() {
           </div>
 
           {/* ── Footer ── */}
-          <footer className="footer">
-            <p>Your personal sommelier, learning with every sip.</p>
-          </footer>
+{/* ── Footer ── */}
+<footer className="footer">
+  <p>Your personal sommelier, learning with every sip.</p>
+  <Link href="/tasting" style={{
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 8,
+    marginTop: 20,
+    fontFamily: "'Jost', sans-serif",
+    fontSize: 13,
+    fontWeight: 400,
+    letterSpacing: "0.08em",
+    color: "var(--wine)",
+    textDecoration: "none",
+    border: "1px solid var(--dusty-rose)",
+    borderRadius: 100,
+    padding: "10px 22px",
+    transition: "all 0.2s ease",
+  }}>
+    🍷 Start a tasting session
+  </Link>
+</footer>
 
         </div>
       </main>
