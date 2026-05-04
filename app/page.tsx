@@ -620,7 +620,6 @@ export default function HomePage() {
           {(activeMoment || recommendation) && (
             <button className="btn-ghost" onClick={handleNewSession}>New moment</button>
           )}
-          <Link href="/tasting" className="btn-ghost">Tasting mode</Link>
         </div>
       </nav>
 
